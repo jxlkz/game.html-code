@@ -1,31 +1,118 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>ProbaScore Wheel Test</title>
+  <title>ProbaScore Eligibility + Categories Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      gap: 24px;
+      padding: 16px;
+    }
+    #eligibleBox {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 8px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    #eligibleList {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0;
+    }
+    .player-item {
+      padding: 4px 6px;
+      cursor: pointer;
+    }
+    .player-item:hover {
+      background: #eee;
+    }
+    .player-item.selected {
+      background: #007bff;
+      color: white;
+    }
+    #middleBox {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    #categoriesBox {
+      flex: 1;
+      border: 1px solid #ccc;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .category-slot {
+      border: 1px solid #ccc;
+      min-height: 32px;
+      padding: 4px 6px;
+      cursor: pointer;
+    }
+    .category-slot.selected-slot {
+      outline: 2px solid #007bff;
+    }
+    .category-slot.filled-slot {
+      background: #f5f5f5;
+    }
+    .small-label {
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
-  <h1>ProbaScore Eligibility Test</h1>
+  <!-- LEFT: Eligible players -->
+  <div id="eligibleBox">
+    <h3>Eligible Players</h3>
+    <p class="small-label" id="eligibleHint">
+      Only players from the chosen team and position show here.
+    </p>
+    <ul id="eligibleList"></ul>
+    <button id="confirmPlayerBtn">Confirm Player</button>
+  </div>
 
-  <label>
-    Team code:
-    <input id="teamInput" value="POR" />
-  </label>
-  <br />
-  <label>
-    Position:
-    <input id="posInput" value="ST" />
-  </label>
-  <br />
-  <button id="checkBtn">Show eligible players</button>
+  <!-- MIDDLE: simple controls to simulate wheel result -->
+  <div id="middleBox">
+    <h3>Wheel Result (Test Controls)</h3>
+    <label>
+      Team code:
+      <input id="teamInput" value="POR" />
+    </label>
+    <br />
+    <label>
+      Position:
+      <input id="posInput" value="ST" />
+    </label>
+    <br />
+    <button id="checkBtn">Show eligible players</button>
+    <p class="small-label">
+      In your real game, call <code>onWheelStop(teamCode, wheelPosition)</code>
+      when the wheel stops.
+    </p>
+  </div>
 
-  <pre id="output"></pre>
+  <!-- RIGHT: 9 category slots -->
+  <div id="categoriesBox">
+    <h3>Categories</h3>
+    <p class="small-label">Click a box, then pick a player and press Confirm.</p>
+    <div class="category-slot" data-slot="1">Category 1</div>
+    <div class="category-slot" data-slot="2">Category 2</div>
+    <div class="category-slot" data-slot="3">Category 3</div>
+    <div class="category-slot" data-slot="4">Category 4</div>
+    <div class="category-slot" data-slot="5">Category 5</div>
+    <div class="category-slot" data-slot="6">Category 6</div>
+    <div class="category-slot" data-slot="7">Category 7</div>
+    <div class="category-slot" data-slot="8">Category 8</div>
+    <div class="category-slot" data-slot="9">Category 9</div>
+  </div>
 
   <script>
-    // === YOUR PLAYERS ARRAY GOES HERE ===
-   
-
-const players = [
+  // === FULL PLAYERS ARRAY ===
+  const players = [
   // RSA
   { name: "Ronwen Williams", team: "RSA", positions: ["GK"] },
   { name: "Sipho Chaine", team: "RSA", positions: ["GK"] },
@@ -1365,24 +1452,102 @@ const players = [
   { name: "Tomás Rodríguez", team: "PAN", positions: ["ST","LM","CM"] },
   { name: "José Fajardo", team: "PAN", positions: ["ST"] },
   { name: "Cecilio Waterman", team: "PAN", positions: ["ST"] }
+    ];
 
-];
-
+    // === Eligibility function ===
     function getEligiblePlayers(teamCode, wheelPosition) {
       return players.filter(
         p => p.team === teamCode && p.positions.includes(wheelPosition)
       );
     }
 
+    // === State for UI ===
+    let currentEligible = [];
+    let selectedPlayer = null;
+    let selectedSlot = null;
+
+    // Render eligible players into the left box
+    function renderEligibleList() {
+      const listEl = document.getElementById("eligibleList");
+      listEl.innerHTML = "";
+      selectedPlayer = null;
+
+      if (!currentEligible.length) {
+        listEl.innerHTML = "<li>No eligible players.</li>";
+        return;
+      }
+
+      currentEligible.forEach((p, index) => {
+        const li = document.createElement("li");
+        li.textContent = p.name;
+        li.classList.add("player-item");
+        li.dataset.index = index;
+
+        li.addEventListener("click", () => {
+          document
+            .querySelectorAll(".player-item.selected")
+            .forEach(el => el.classList.remove("selected"));
+          li.classList.add("selected");
+          selectedPlayer = p;
+        });
+
+        listEl.appendChild(li);
+      });
+    }
+
+    // Call this when team + position are known (wheel result)
+    function updateEligibleBox(teamCode, wheelPosition) {
+      currentEligible = getEligiblePlayers(teamCode, wheelPosition);
+      renderEligibleList();
+    }
+
+    // Simulate wheel with the test button
     document.getElementById("checkBtn").addEventListener("click", () => {
       const team = document.getElementById("teamInput").value.trim();
       const pos = document.getElementById("posInput").value.trim();
-      const result = getEligiblePlayers(team, pos);
-      document.getElementById("output").textContent =
-        result.length
-          ? result.map(p => `${p.name} (${p.team})`).join("\n")
-          : "No eligible players.";
+      updateEligibleBox(team, pos);
     });
+
+    // In your real game, call this from the wheel:
+    // window.onWheelStop("POR", "ST");
+    window.onWheelStop = function (teamCode, wheelPosition) {
+      document.getElementById("teamInput").value = teamCode;
+      document.getElementById("posInput").value = wheelPosition;
+      updateEligibleBox(teamCode, wheelPosition);
+    };
+
+    // Category slot selection
+    document.querySelectorAll(".category-slot").forEach(slot => {
+      slot.addEventListener("click", () => {
+        document
+          .querySelectorAll(".category-slot.selected-slot")
+          .forEach(el => el.classList.remove("selected-slot"));
+        slot.classList.add("selected-slot");
+        selectedSlot = slot;
+      });
+    });
+
+    // Confirm Player → put into selected category
+    document
+      .getElementById("confirmPlayerBtn")
+      .addEventListener("click", () => {
+        if (!selectedPlayer) {
+          alert("Pick a player from the Eligible Players list first.");
+          return;
+        }
+        if (!selectedSlot) {
+          alert("Click a category box on the right.");
+          return;
+        }
+
+        selectedSlot.textContent = selectedPlayer.name;
+        selectedSlot.classList.add("filled-slot");
+
+        // Optional: remove player from eligible list
+        currentEligible = currentEligible.filter(p => p !== selectedPlayer);
+        renderEligibleList();
+      });
   </script>
 </body>
 </html>
+
